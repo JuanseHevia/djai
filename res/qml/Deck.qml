@@ -122,7 +122,7 @@ Item {
                                     "type": "spinny"
                                 },
                                 {
-                                    "type": "fxAssign"
+                                    "type": "beatFx"
                                 }
                             ]
                         },
@@ -175,6 +175,24 @@ Item {
 
         group: root.group
         key: "track_loaded"
+    }
+    Mixxx.ControlProxy {
+        id: flx4ActiveDeck
+
+        group: root.group
+        key: "flx4_active_deck"
+    }
+    Rectangle {
+        id: flx4ActiveOutline
+
+        anchors.fill: parent
+        color: "transparent"
+        border.width: 2
+        border.color: flx4ActiveDeck.value > 0.5
+            ? Qt.alpha(Theme.deckLineColor, 0.35)
+            : "transparent"
+        radius: 3
+        z: 1000
     }
     MouseArea {
         id: dragArea
@@ -293,6 +311,26 @@ Item {
                 width: 135
 
                 DeckComponent.FXAssign {
+                    group: root.group
+                }
+            }
+        }
+        DelegateChoice {
+            roleValue: "beatFx"
+
+            LayoutItem {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.fillWidth: true
+                Layout.minimumWidth: 160
+                Layout.preferredWidth: 190
+                editLabel.color: Theme.midGray
+                editLabel.font.capitalization: Font.AllUppercase
+                editLabel.text: "Beat FX"
+                editOverlay.color: Theme.darkGray2
+                height: 120
+
+                DeckComponent.BeatFx {
+                    anchors.fill: parent
                     group: root.group
                 }
             }

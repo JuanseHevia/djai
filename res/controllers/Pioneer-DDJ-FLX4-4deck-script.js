@@ -193,6 +193,14 @@ PioneerDDJFLX4.leftDeck = 1;
 PioneerDDJFLX4.rightDeck = 2;
 PioneerDDJFLX4.beatFxChannelEnabled = { left: 0, right: 0 };
 
+PioneerDDJFLX4.updateDeckUiState = function() {
+    const useDecks12 = PioneerDDJFLX4.leftDeck === 1 && PioneerDDJFLX4.rightDeck === 2;
+    engine.setValue("[Channel1]", "flx4_active_deck", useDecks12 ? 1 : 0);
+    engine.setValue("[Channel2]", "flx4_active_deck", useDecks12 ? 1 : 0);
+    engine.setValue("[Channel3]", "flx4_active_deck", useDecks12 ? 0 : 1);
+    engine.setValue("[Channel4]", "flx4_active_deck", useDecks12 ? 0 : 1);
+};
+
 // Jog wheel loop adjust
 PioneerDDJFLX4.loopAdjustIn = [false, false];
 PioneerDDJFLX4.loopAdjustOut = [false, false];
@@ -282,6 +290,7 @@ PioneerDDJFLX4.toggleDeckPair = function(side) {
     // Move Beat FX routing to the newly selected deck if enabled.
     engine.setValue("[EffectRack1_EffectUnit1]", `group_[Channel${prevDeck}]_enable`, 0);
     PioneerDDJFLX4.applyBeatFxRouting();
+    PioneerDDJFLX4.updateDeckUiState();
 };
 
 PioneerDDJFLX4.smartFxToggle = function(_channel, control, value) {
@@ -496,6 +505,8 @@ PioneerDDJFLX4.init = function() {
 
     // query the controller for current control positions on startup
     PioneerDDJFLX4.sendKeepAlive(); // the query seems to double as a keep alive message
+
+    PioneerDDJFLX4.updateDeckUiState();
 };
 
 //
@@ -546,13 +557,8 @@ PioneerDDJFLX4.focusedFxGroup = function() {
 };
 
 PioneerDDJFLX4.beatFxLevelDepthRotate = function(_channel, _control, value) {
-    if (PioneerDDJFLX4.shiftButtonDown[0] || PioneerDDJFLX4.shiftButtonDown[1]) {
-        engine.softTakeoverIgnoreNextValue("[EffectRack1_EffectUnit1]", "mix");
-        engine.setParameter(PioneerDDJFLX4.focusedFxGroup(), "meta", value / 0x7F);
-    } else {
-        engine.softTakeoverIgnoreNextValue(PioneerDDJFLX4.focusedFxGroup(), "meta");
-        engine.setParameter("[EffectRack1_EffectUnit1]", "mix", value / 0x7F);
-    }
+    engine.softTakeoverIgnoreNextValue("[EffectRack1_EffectUnit1]", "mix");
+    engine.setParameter("[EffectRack1_EffectUnit1]", "mix", value / 0x7F);
 };
 
 PioneerDDJFLX4.changeFocusedEffectBy = function(numberOfSteps) {
@@ -571,6 +577,31 @@ PioneerDDJFLX4.changeFocusedEffectBy = function(numberOfSteps) {
     engine.setValue("[EffectRack1_EffectUnit1]", "focused_effect", focusedEffect);
 };
 
+PioneerDDJFLX4.fxMetaValues = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0];
+
+PioneerDDJFLX4.nearestFxMetaIndex = function(value) {
+    let nearestIndex = 0;
+    let nearestDistance = Infinity;
+    PioneerDDJFLX4.fxMetaValues.forEach(function(candidate, index) {
+        const distance = Math.abs(candidate - value);
+        if (distance < nearestDistance) {
+            nearestDistance = distance;
+            nearestIndex = index;
+        }
+    });
+    return nearestIndex;
+};
+
+PioneerDDJFLX4.adjustFxMetaBy = function(direction) {
+    const fxGroup = PioneerDDJFLX4.focusedFxGroup();
+    const current = engine.getParameter(fxGroup, "meta");
+    let index = PioneerDDJFLX4.nearestFxMetaIndex(current);
+    index = Math.max(0, Math.min(PioneerDDJFLX4.fxMetaValues.length - 1, index + direction));
+    const next = PioneerDDJFLX4.fxMetaValues[index];
+    engine.softTakeoverIgnoreNextValue(fxGroup, "meta");
+    engine.setParameter(fxGroup, "meta", next);
+};
+
 PioneerDDJFLX4.beatFxSelectPressed = function(_channel, _control, value) {
     if (value === 0) { return; }
 
@@ -585,14 +616,12 @@ PioneerDDJFLX4.beatFxSelectShiftPressed = function(_channel, _control, value) {
 
 PioneerDDJFLX4.beatFxLeftPressed = function(_channel, _control, value) {
     if (value === 0) { return; }
-
-    PioneerDDJFLX4.changeFocusedEffectBy(-1);
+    PioneerDDJFLX4.adjustFxMetaBy(-1);
 };
 
 PioneerDDJFLX4.beatFxRightPressed = function(_channel, _control, value) {
     if (value === 0) { return; }
-
-    PioneerDDJFLX4.changeFocusedEffectBy(1);
+    PioneerDDJFLX4.adjustFxMetaBy(1);
 };
 
 PioneerDDJFLX4.beatFxOnOffPressed = function(_channel, _control, value) {
